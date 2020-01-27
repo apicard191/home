@@ -1,0 +1,97 @@
+#!/bin/bash
+DEFAULT="\\033[0;39m"
+YELLOW="\\033[1;33m"
+GREEN="\\033[1;32m"
+RED="\\033[1;31m"
+ROSE="\\033[1;35m"
+BLUE="\\033[1;34m"
+WHITE="\\033[0;02m"
+CYAN="\\033[1;36m"
+NC='\033[0m' # No Color
+
+setup(){
+  if [ ! -z "$HOME_DOCKER" ] && [ -d "$HOME_DOCKER" ]; then
+    echo -e "${RED}Home is already exist.${NC}"
+  else
+    printf "Docker path: [~/docker/environment] "
+    read HOME_DOCKER
+    if [ -z $HOME_DOCKER ]; then
+      HOME_DOCKER="~/docker/environment";
+    fi
+    echo $HOME_DOCKER
+    echo "Wich file do you want to use ?"
+    echo "    1/ .env (default)"
+    echo "    2/ .env.local"
+    echo "    3/ .home_env"
+    read FILE_CHOICE
+    case "$FILE_CHOICE" in
+      "1")
+          ENV_FILE=".env"
+          ;;
+      "2")
+          ENV_FILE=".env.local"
+          ;;
+      "1")
+          ENV_FILE=".home_env"
+          ;;
+      *)
+          ENV_FILE=".env"
+          ;;
+      esac
+      printf "\nHOME_DOCKER=$HOME_DOCKER" >> ${ENV_FILE}
+    fi
+}
+
+install(){
+  if [ ! -z "$HOME_DOCKER" ] && [ -d "$HOME_DOCKER" ]; then
+    echo -e "${RED}Home is already exist.${NC}"
+  else
+    while [ -z $HOME_GIT ]; do
+      printf "Git repository: "
+      read HOME_GIT
+      if [ -z $HOME_GIT ]; then
+        echo -e "${RED}Please enter git repository.${NC}"
+      fi
+    done
+    setup
+    (git clone $HOME_GIT $HOME_DOCKER)
+    (cd $HOME_DOCKER && make install)
+  fi
+}
+
+if [ -f ./.env ] ; then
+  ENV_FILE='./.env'
+fi
+if [ -f ./.env.local ] || [ -z $$HOME_DOCKER ] ; then
+  ENV_FILE='./.env.local'
+fi
+if [ -f ./.home_env ] || [ -z $$HOME_DOCKER ] ; then
+  ENV_FILE='./.home_env'
+fi
+source $ENV_FILE
+
+if [[ -z $1 ]]; then
+  echo -e "Home execute commandes in  your docker directory (${YELLOW}${HOME_DOCKER}${NC})"
+  (cd $HOME_DOCKER && make);
+  echo -e "${BLUE}Or all that you want${NC}"
+elif [[ $1 == 'install' ]]; then
+  install
+elif [[ $1 == 'setup' ]]; then
+  setup
+elif [ ! -z "$HOME_DOCKER" ] && [ -d "$HOME_DOCKER" ]; then
+  if [[ $(cd $HOME_DOCKER && sed -e "/^$1:/!d" Makefile) ]]; then
+    echo -e "Exec ${BLUE}make $1${NC} in ${YELLOW}${HOME_DOCKER}${NC} :"
+    (cd $HOME_DOCKER && make $@);
+  else
+    echo -e "Exec ${BLUE}$@${NC} in ${YELLOW}${HOME_DOCKER}${NC} :"
+    (cd $HOME_DOCKER && $@);
+  fi
+else
+  if [ -z "$HOME_DOCKER" ]; then
+    echo -e "${RED}HOME_DOCKER variable is not defined.${NC}"
+    echo "To defined it home setup"
+  else
+    echo "Directory $HOME_DOCKER not found"
+  fi
+
+fi
